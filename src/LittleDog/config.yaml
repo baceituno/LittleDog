@@ -1,0 +1,386 @@
+kinematic_tree_metadata:
+  body_names:
+    feet:
+      P1: &P1_FOOT_NAME Pata1_Link3
+      P2: &P2_FOOT_NAME Pata2_Link3
+      P3: &P3_FOOT_NAME Pata3_Link3
+      P4: &P4_FOOT_NAME Pata4_Link3
+      P5: &P5_FOOT_NAME Pata5_Link3
+      P6: &P6_FOOT_NAME Pata6_Link3
+
+  joint_group_names:
+    legs:
+      P1: [Pata1_Motor1, Pata1_Motor2, Pata1_Motor3]
+      P2: [Pata2_Motor1, Pata2_Motor2, Pata2_Motor3]
+      P3: [Pata3_Motor1, Pata3_Motor2, Pata3_Motor3]
+      P4: [Pata4_Motor1, Pata4_Motor2, Pata4_Motor3]
+      P5: [Pata5_Motor1, Pata5_Motor2, Pata5_Motor3]
+      P6: [Pata6_Motor1, Pata6_Motor2, Pata6_Motor3]
+    knees:
+      P1: Pata1_Motor3
+      P2: Pata2_Motor3
+      P3: Pata3_Motor3
+      P4: Pata4_Motor3
+      P5: Pata5_Motor3
+      P6: Pata6_Motor3
+    
+joint_names:
+  - Pata1_Motor1
+  - Pata1_Motor2
+  - Pata1_Motor3
+  - Pata2_Motor1
+  - Pata2_Motor2
+  - Pata2_Motor3
+  - Pata3_Motor1
+  - Pata3_Motor2
+  - Pata3_Motor3
+  - Pata4_Motor1
+  - Pata4_Motor2
+  - Pata4_Motor3
+  - Pata5_Motor1
+  - Pata5_Motor2
+  - Pata5_Motor3
+  - Pata6_Motor1
+  - Pata6_Motor2
+  - Pata6_Motor3
+
+qp_controller_params:
+  DEFAULT:
+    body_specific:
+      DEFAULT:
+        Kp: {x: 12, y: 12, z: 12, wx: 12, wy: 12, wz: 12}
+        damping_ratio: 0.7
+        accel_bounds:
+          min: {x: -100, y: -100, z: -100, wx: -50, wy: -50, wz: -50}
+          max: {x: 100, y: 100, z: 100, wx: 50, wy: 50, wz: 50}
+        weight: 0.0
+      base_link:
+        Kp: {x: 150, y: 150, z: 150, wx: 200, wy: 200, wz: 200}
+        weight: 0.01
+        damping_ratio: 0.6
+      *P1_FOOT_NAME :
+        weight: 0.01
+      *P2_FOOT_NAME :
+        weight: 0.01
+      *P3_FOOT_NAME :
+        weight: 0.01
+      *P4_FOOT_NAME :
+        weight: 0.01
+      *P5_FOOT_NAME :
+        weight: 0.01
+      *P6_FOOT_NAME :
+        weight: 0.01
+    position_specific:
+      DEFAULT:
+        Kp: 150
+        damping_ratio: 0.6
+        w_qdd: 0.001
+        integrator:
+          gain: 0
+          clamp: 0
+        qdd_bounds:
+          min: -100
+          max: 100
+        joint_soft_limits:
+          enabled: false
+          lb: -1.58
+          ub: 1.58
+          kp: 150
+          damping_ratio: 0.6
+          weight: 1e-5
+          disable_when_body_in_support: ""
+          k_logistic: 20
+      base_x:
+        w_qdd: 0
+      base_y:
+        w_qdd: 0
+      base_z:
+        w_qdd: 0
+      base_roll:
+        w_qdd: 0
+      base_pitch:
+        w_qdd: 0
+      base_yaw:
+        w_qdd: 0
+      Pata1_Motor3:
+        joint_soft_limits:
+          enabled: true
+          lb: 0.5
+          disable_when_body_in_support: *P1_FOOT_NAME
+      Pata2_Motor3:
+        joint_soft_limits:
+          enabled: true
+          lb: 0.5
+          disable_when_body_in_support: *P2_FOOT_NAME
+      Pata3_Motor3:
+        joint_soft_limits:
+          enabled: true
+          lb: 0.5
+          disable_when_body_in_support: *P3_FOOT_NAME
+      Pata4_Motor3:
+        joint_soft_limits:
+          enabled: true
+          lb: 0.5
+          disable_when_body_in_support: *P4_FOOT_NAME
+      Pata5_Motor3:
+        joint_soft_limits:
+          enabled: true
+          lb: 0.5
+          disable_when_body_in_support: *P5_FOOT_NAME
+      Pata6_Motor3:
+        joint_soft_limits:
+          enabled: true
+          lb: 0.5
+          disable_when_body_in_support: *P6_FOOT_NAME
+    vref_integrator:
+      eta: 0.001
+      delta_max: 10
+    integrator: 
+      eta: 0.0
+    W_kdot: 0
+    Kp_ang: 0
+    w_slack: 0.05
+    slack_limit: 100
+    w_grf: 0
+    Kp_accel: 1
+    contact_threshold: 0.002
+    min_knee_angle: 0.0
+    center_of_mass_observer:
+      enabled: false
+      l_zmp: 10
+      l_com: 6.324555320336759 # 2 * sqrt(l_zmp)
+    input_specific:
+      DEFAULT: 
+        hardware:
+          joint_is_force_controlled: true
+          joint_is_position_controlled: false #true
+          k_f_p: 0
+          k_q_p: 0
+          k_q_i: 0
+          k_qd_p: 0
+          ff_qd: 0
+          ff_f_d: 0
+          ff_const: 0
+          ff_qd_d: 0
+
+  base: # automatically inherits from the default =
+  standing: 
+  walking:
+    body_specific:
+      DEFAULT:
+        weight: 0.001
+      base_link:
+        Kp: {x: 0, y: 0, z: 150, wx: 200, wy: 200, wz: 200}
+        weight: 0.075
+      *P1_FOOT_NAME :
+        Kp: {x: 100, y: 100, z: 100, wx: 150, wy: 150, wz: 150}
+        damping_ratio: 0.5
+        weight: 0.001
+      *P2_FOOT_NAME :
+        Kp: {x: 100, y: 100, z: 100, wx: 150, wy: 150, wz: 150}
+        damping_ratio: 0.5
+        weight: 0.001
+      *P3_FOOT_NAME :
+        Kp: {x: 100, y: 100, z: 100, wx: 150, wy: 150, wz: 150}
+        damping_ratio: 0.5
+        weight: 0.001
+      *P4_FOOT_NAME :
+        Kp: {x: 100, y: 100, z: 100, wx: 150, wy: 150, wz: 150}
+        damping_ratio: 0.5
+        weight: 0.001
+      *P5_FOOT_NAME :
+        Kp: {x: 100, y: 100, z: 100, wx: 150, wy: 150, wz: 150}
+        damping_ratio: 0.5
+        weight: 0.001
+      *P6_FOOT_NAME :
+        Kp: {x: 100, y: 100, z: 100, wx: 150, wy: 150, wz: 150}
+        damping_ratio: 0.5
+        weight: 0.001
+    position_specific:
+      DEFAULT: 
+        w_qdd: 0
+        damping_ratio: 0.5
+      Pata1_Motor1: {w_qdd: 1e-6, damping_ratio: 0.5}
+      Pata1_Motor2: {w_qdd: 1e-6, damping_ratio: 0.5}
+      Pata1_Motor3: {w_qdd: 1e-6, damping_ratio: 0.5}
+      Pata2_Motor1: {w_qdd: 1e-6, damping_ratio: 0.5}
+      Pata2_Motor2: {w_qdd: 1e-6, damping_ratio: 0.5}
+      Pata2_Motor3: {w_qdd: 1e-6, damping_ratio: 0.5}
+      Pata3_Motor1: {w_qdd: 1e-6, damping_ratio: 0.5}
+      Pata3_Motor2: {w_qdd: 1e-6, damping_ratio: 0.5}
+      Pata3_Motor3: {w_qdd: 1e-6, damping_ratio: 0.5}
+      Pata4_Motor1: {w_qdd: 1e-6, damping_ratio: 0.5}
+      Pata4_Motor2: {w_qdd: 1e-6, damping_ratio: 0.5}
+      Pata4_Motor3: {w_qdd: 1e-6, damping_ratio: 0.5}
+      Pata5_Motor1: {w_qdd: 1e-6, damping_ratio: 0.5}
+      Pata5_Motor2: {w_qdd: 1e-6, damping_ratio: 0.5}
+      Pata5_Motor3: {w_qdd: 1e-6, damping_ratio: 0.5}
+      Pata6_Motor1: {w_qdd: 1e-6, damping_ratio: 0.5}
+      Pata6_Motor2: {w_qdd: 1e-6, damping_ratio: 0.5}
+      Pata6_Motor3: {w_qdd: 1e-6, damping_ratio: 0.5}
+    contact_threshold: 0.001
+    Kp_accel: 0
+
+  recovery:
+    body_specific:
+      DEFAULT:
+        weight: 0.001
+      base_link:
+        Kp: {x: 0, y: 0, z: 150, wx: 200, wy: 200, wz: 200}
+        weight: 0.075
+      *P1_FOOT_NAME :
+        Kp: {x: 1000, y: 1000, z: 1000, wx: 1500, wy: 1500, wz: 1500}
+        damping_ratio: 0.5
+        weight: 0.001
+      *P2_FOOT_NAME :
+        Kp: {x: 1000, y: 1000, z: 1000, wx: 1500, wy: 1500, wz: 1500}
+        damping_ratio: 0.5
+        weight: 0.001
+      *P3_FOOT_NAME :
+        Kp: {x: 1000, y: 1000, z: 1000, wx: 1500, wy: 1500, wz: 1500}
+        damping_ratio: 0.5
+        weight: 0.001
+      *P4_FOOT_NAME :
+        Kp: {x: 1000, y: 1000, z: 1000, wx: 1500, wy: 1500, wz: 1500}
+        damping_ratio: 0.5
+        weight: 0.001
+      *P5_FOOT_NAME :
+        Kp: {x: 1000, y: 1000, z: 1000, wx: 1500, wy: 1500, wz: 1500}
+        damping_ratio: 0.5
+        weight: 0.001
+      *P6_FOOT_NAME :
+        Kp: {x: 1000, y: 1000, z: 1000, wx: 1500, wy: 1500, wz: 1500}
+        damping_ratio: 0.5
+        weight: 0.001
+    position_specific:
+      DEFAULT: 
+        w_qdd: 0
+        damping_ratio: 0.5
+      Pata1_Motor1: {w_qdd: 1e-6, damping_ratio: 0.5}
+      Pata1_Motor2: {w_qdd: 1e-6, damping_ratio: 0.5}
+      Pata1_Motor3: {w_qdd: 1e-6, damping_ratio: 0.5}
+      Pata2_Motor1: {w_qdd: 1e-6, damping_ratio: 0.5}
+      Pata2_Motor2: {w_qdd: 1e-6, damping_ratio: 0.5}
+      Pata2_Motor3: {w_qdd: 1e-6, damping_ratio: 0.5}
+      Pata3_Motor1: {w_qdd: 1e-6, damping_ratio: 0.5}
+      Pata3_Motor2: {w_qdd: 1e-6, damping_ratio: 0.5}
+      Pata3_Motor3: {w_qdd: 1e-6, damping_ratio: 0.5}
+      Pata4_Motor1: {w_qdd: 1e-6, damping_ratio: 0.5}
+      Pata4_Motor2: {w_qdd: 1e-6, damping_ratio: 0.5}
+      Pata4_Motor3: {w_qdd: 1e-6, damping_ratio: 0.5}
+      Pata5_Motor1: {w_qdd: 1e-6, damping_ratio: 0.5}
+      Pata5_Motor2: {w_qdd: 1e-6, damping_ratio: 0.5}
+      Pata5_Motor3: {w_qdd: 1e-6, damping_ratio: 0.5}
+      Pata6_Motor1: {w_qdd: 1e-6, damping_ratio: 0.5}
+      Pata6_Motor2: {w_qdd: 1e-6, damping_ratio: 0.5}
+      Pata6_Motor3: {w_qdd: 1e-6, damping_ratio: 0.5}
+    contact_threshold: 0.001
+    Kp_accel: 0
+
+######################## position control #########################
+  position_control:
+    position_specific:
+      Pata1_Motor1:
+        integrator:
+          gain: 0.3
+          clamp: 0.1
+      Pata1_Motor2:
+        integrator:
+          gain: 0.3
+          clamp: 0.1
+      Pata1_Motor3:
+        integrator:
+          gain: 0.3
+          clamp: 0.1
+      Pata2_Motor1:
+        integrator:
+          gain: 0.3
+          clamp: 0.1
+      Pata2_Motor2:
+        integrator:
+          gain: 0.3
+          clamp: 0.1
+      Pata2_Motor3:
+        integrator:
+          gain: 0.3
+          clamp: 0.1
+      Pata3_Motor1:
+        integrator:
+          gain: 0.3
+          clamp: 0.1
+      Pata3_Motor2:
+        integrator:
+          gain: 0.3
+          clamp: 0.1
+      Pata3_Motor3:
+        integrator:
+          gain: 0.3
+          clamp: 0.1
+      Pata4_Motor1:
+        integrator:
+          gain: 0.3
+          clamp: 0.1
+      Pata4_Motor2:
+        integrator:
+          gain: 0.3
+          clamp: 0.1
+      Pata4_Motor3:
+        integrator:
+          gain: 0.3
+          clamp: 0.1
+      Pata5_Motor1:
+        integrator:
+          gain: 0.3
+          clamp: 0.1
+      Pata5_Motor2:
+        integrator:
+          gain: 0.3
+          clamp: 0.1
+      Pata5_Motor3:
+        integrator:
+          gain: 0.3
+          clamp: 0.1
+      Pata6_Motor1:
+        integrator:
+          gain: 0.3
+          clamp: 0.1
+      Pata6_Motor2:
+        integrator:
+          gain: 0.3
+          clamp: 0.1
+      Pata6_Motor3:
+        integrator:
+          gain: 0.3
+          clamp: 0.1
+######################## bracing ##################################
+  bracing:
+    position_specific:
+      DEFAULT:
+        Kp: 170
+        damping_ratio: 1.1
+        w_qdd: 1
+        integrator:
+          gain: 0
+          clamp: 0
+      base_x: 
+        Kp: 0
+        w_qdd: 1
+      base_y:
+        Kp: 0
+        w_qdd: 1
+      base_z:
+        Kp: 0
+        w_qdd: 1
+      base_roll:
+        Kp: 0
+        w_qdd: 1
+      base_pitch:
+        Kp: 0
+        w_qdd: 1
+      base_yaw:
+        Kp: 0
+        w_qdd: 1
+    body_specific:
+      DEFAULT:
+        Kp: {x: 0, y: 0, z: 0, wx: 0, wy: 0, wz: 0}
+        damping_ratio: 0
