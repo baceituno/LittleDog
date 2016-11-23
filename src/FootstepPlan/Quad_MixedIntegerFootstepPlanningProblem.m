@@ -426,7 +426,7 @@ classdef Quad_MixedIntegerFootstepPlanningProblem < Quad_MixedIntegerConvexProgr
       % Adds quadratic constraints such that every footstep lies on a circle of radius R 
       % centered on its previous configuration.
 
-      R = 1.5*((obj.seed_plan.footsteps(3).pos(1) - obj.seed_plan.footsteps(4).pos(1))^2 +...
+      R = 0.75*((obj.seed_plan.footsteps(3).pos(1) - obj.seed_plan.footsteps(4).pos(1))^2 +...
           (obj.seed_plan.footsteps(3).pos(2) - obj.seed_plan.footsteps(4).pos(2))^2);
       
       for j = 5:obj.nsteps
