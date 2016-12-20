@@ -11,6 +11,11 @@ classdef Quad_MixedIntegerFootstepPlanningProblem < Quad_MixedIntegerConvexProgr
     Quadruped;
     nsteps;
     seed_plan;
+    L_leg = 0.092;
+    offset = [0.8826, -0.8826, pi - 0.8826, -pi + 0.8826];
+    d_lim = 0.0144;
+    l_bnd = 0.0721;
+    dz = 0.0092;
     weights;
     max_distance = 50;
     pose_indices = [1,2,3,6];
@@ -56,6 +61,7 @@ classdef Quad_MixedIntegerFootstepPlanningProblem < Quad_MixedIntegerConvexProgr
       ub(:,4) = seed_steps(obj.pose_indices, 4);
 
       obj = obj.addVariable('footsteps', 'C', [4, obj.nsteps], lb, ub);
+      obj = obj.addVariable('timming', 'C', [1, obj.nsteps], 1, obj.nsteps);
     end
 
     function obj = addQuadraticGoalObjective(obj, goal_pose, step_indices, relative_weights)
@@ -95,7 +101,7 @@ classdef Quad_MixedIntegerFootstepPlanningProblem < Quad_MixedIntegerConvexProgr
         return
       end
       obj = obj.addVariable('trim', 'B', [1, obj.nsteps], 0, 1);
-      w_trim = obj.weights.relative(1) * (obj.seed_plan.params.nom_forward_step^2);
+      w_trim = obj.weights.relative(1) * (obj.l_bnd^2);
       min_num_steps = max([obj.seed_plan.params.min_num_steps + 6, 7]);
 
       obj.vars.trim.lb(end-3:end) = 1;
@@ -103,7 +109,7 @@ classdef Quad_MixedIntegerFootstepPlanningProblem < Quad_MixedIntegerConvexProgr
       obj.vars.trim.lb(1:4) = 0;
       obj.vars.trim.ub(1:4) = 0;
 
-      Ai = zeros(obj.nsteps-4 + 4 + max(obj.nsteps-8, 0) * 8, obj.nv);
+      Ai = sparse(obj.nsteps-4 + 4 + max(obj.nsteps-8, 0) * 8, obj.nv);
       bi = zeros(size(Ai, 1), 1);
       offset = 0;
       expected_offset = size(Ai, 1);
@@ -118,11 +124,12 @@ classdef Quad_MixedIntegerFootstepPlanningProblem < Quad_MixedIntegerConvexProgr
       bi(offset+1) = obj.nsteps - (min_num_steps - 4);
       offset = offset + 1;
       M = obj.max_distance;
-      n = 4;
+      n = 1;
       for j = 5:obj.nsteps-4
         if mod(n, 4) == 0
           % obj.symbolic_constraints = [obj.symbolic_constraints, implies(trim(j), x(:,j) == x(:,end))];
           k = obj.nsteps;
+	        n = 1;
         elseif mod(n, 3) == 0
           % obj.symbolic_constraints = [obj.symbolic_constraints, implies(trim(j), x(:,j) == x(:,end-3))];
           k = obj.nsteps - 1;
@@ -131,7 +138,6 @@ classdef Quad_MixedIntegerFootstepPlanningProblem < Quad_MixedIntegerConvexProgr
           k = obj.nsteps - 2;
         else
           k = obj.nsteps - 3;
-          n = 5;
         end
         % x(:,j) - x(:,k) <= M(1-trim(j))
         Ai(offset+(1:4), obj.vars.footsteps.i(:,j)) = speye(4);
@@ -146,7 +152,7 @@ classdef Quad_MixedIntegerFootstepPlanningProblem < Quad_MixedIntegerConvexProgr
         Ai(offset+(1:4), obj.vars.trim.i(j)) = M;
         bi(offset+(1:4)) = M;
         offset = offset + 4; 
-        n = n - 1;
+        n = n + 1;
       end
 
       obj = obj.addLinearConstraints(Ai, bi, [], []);
@@ -175,7 +181,7 @@ classdef Quad_MixedIntegerFootstepPlanningProblem < Quad_MixedIntegerConvexProgr
       Qi = sparse(obj.nv, obj.nv);
 
       k = 1;
-      for j = 7:obj.nsteps
+      for j = 5:obj.nsteps
         disc = 0;
         if mod(k,6) == 0;
           n = 1;
@@ -228,7 +234,6 @@ classdef Quad_MixedIntegerFootstepPlanningProblem < Quad_MixedIntegerConvexProgr
 
         Qnew = sparse(Qnew(:,1), Qnew(:,2), Qnew(:,3), obj.nv, obj.nv);
         Qi = Qi + Qnew;
-
       end
       obj = obj.addCost(Qi, [], []);
     end
@@ -245,17 +250,17 @@ classdef Quad_MixedIntegerFootstepPlanningProblem < Quad_MixedIntegerConvexProgr
       nr = length(safe_regions);
       obj = obj.addVariable('region', 'B', [nr, obj.nsteps], 0, 1);
 
-      Ai = zeros((obj.nsteps-4) * sum(cellfun(@(x) size(x, 1) + 2, {safe_regions.A})), obj.nv);
+      Ai = sparse((obj.nsteps-4) * sum(cellfun(@(x) size(x, 1) + 2, {safe_regions.A})), obj.nv);
       bi = zeros(size(Ai, 1), 1);
       offset_ineq = 0;
-      Aeq = zeros(obj.nsteps-4, obj.nv);
+      Aeq = sparse(obj.nsteps-4, obj.nv);
       beq = ones(obj.nsteps-4, 1);
       offset_eq = 0;
 
       for r = 1:nr
         A = safe_regions(r).A;
         b = safe_regions(r).b;
-        Ar = [A(:,1:2), zeros(size(A, 1), 1), 0*A(:,3);
+        Ar = [A(:,1:2), sparse(size(A, 1), 1), 0*A(:,3);
               safe_regions(r).normal', 0;
               -safe_regions(r).normal', 0];
         br = [b;
@@ -303,185 +308,155 @@ classdef Quad_MixedIntegerFootstepPlanningProblem < Quad_MixedIntegerConvexProgr
       obj = obj.addVariable('cos_yaw', 'C', [1, obj.nsteps], cos(yaw), cos(yaw));
       obj = obj.addVariable('sin_yaw', 'C', [1, obj.nsteps], sin(yaw), sin(yaw));
     end
-    
-    function obj = addGeometricConstraints(obj)
-      % Adds Quadractic a constraint to matain each footstep in a circular region centered on its reference 
-      % feet position with respect to the approximated COP with a radius R.
-      % Aditionally it also constrains the separation between each footstep and its neighbour by a distance
-      % r_max.
 
-      r_max = 1.2*((obj.seed_plan.footsteps(1).pos(1) - obj.seed_plan.footsteps(2).pos(1))^2 +...
-                      (obj.seed_plan.footsteps(1).pos(2) - obj.seed_plan.footsteps(2).pos(2))^2);
-      D14 = sqrt(((obj.seed_plan.footsteps(1).pos(1) - obj.seed_plan.footsteps(4).pos(1))^2 +...
-           (obj.seed_plan.footsteps(1).pos(2) - obj.seed_plan.footsteps(4).pos(2))^2));
+    function obj = addReachabilityConstraints(obj)
+      % Adds a linear a constraint to matain each footstep in a squared region centered on its reference 
+      % feet position with respect to the Center of Cotnacts (CoC) with a side d_lim.
+
+      % definea the variable r_nom for the reference position of each step
+      % measured from the center of contacts of each configuration
+      obj = obj.addVariable('r_nom', 'C', [2, obj.nsteps], -10*ones(2,obj.nsteps), 10*ones(2,obj.nsteps));
       
+      % defines the conter of contacts as p(i) = [sum(f(1,i));sum(f(2,i))]/4
+      % and the reference footstep as:
+      %  r_nom(i,1) = p(i,1) + L*cos(yaw(i))
+      %  r_nom(i,2) = p(i,2) + L*sin(yaw(i))
 
-      %finds the nominal postion of each feet respect to its approximated COP
-      h = 0.5*((obj.seed_plan.footsteps(1).pos(1) - obj.seed_plan.footsteps(2).pos(1))^2 +...
-                 (obj.seed_plan.footsteps(1).pos(2) - obj.seed_plan.footsteps(2).pos(2))^2);
-     	d = 0.5*((obj.seed_plan.footsteps(1).pos(1) - obj.seed_plan.footsteps(3).pos(1))^2 +...
-                 (obj.seed_plan.footsteps(1).pos(2) - obj.seed_plan.footsteps(3).pos(2))^2);
-            
-    	offset = atan(h/d);
-    	off1 = offset;
-    	off2 = -offset;
-    	off3 = pi - offset;
-    	off4 = offset - pi;
-
-      %defined the variable circ for the reference position of each step
-      %measured from the approximated COP of each configuration
-
-      obj = obj.addVariable('circ', 'C', [2, obj.nsteps], -10*ones(2,obj.nsteps), 10*ones(2,obj.nsteps));
-      L = D14/2;
-	
-      %defines the approximated cop as cop_app(i) = [sum(f(1,i));sum(f(2,i))]/4
-      %and the reference footstep as:
-      %                               circ(i,1) = cop_app(i,1) + L*cos(yaw(i))
-      %                               circ(i,2) = cop_app(i,2) + L*sin(yaw(i))
       k = 1;
-      for j = 5:obj.nsteps
+      for j = 1:obj.nsteps
         if mod(k,4) == 0
           k = 0;
-	        n1 = j-3;
+          n1 = j-3;
           n2 = j-2;
           n3 = j-1;
           n4 = j;
-          correct = off4;
+          correct = obj.offset(4);
         elseif mod(k,3) == 0
           n1 = j-2;
           n2 = j-1;
           n3 = j;
           n4 = j+1;
-          correct = off3;
+          correct = obj.offset(3);
         elseif mod(k,2) == 0
           n1 = j-1;
           n2 = j;
           n3 = j+1;
           n4 = j+2;
-          correct = off2;
+          correct = obj.offset(2);
         else
           n1 = j;
           n2 = j+1;
           n3 = j+2;
           n4 = j+3;
-          correct = off1;
+          correct = obj.offset(1);
         end
 
         %setting the values
-        Aeq = zeros(2,obj.nv);
+        Aeq = sparse(2,obj.nv);
         beq = zeros(2,1);
 
         Aeq(1,obj.vars.footsteps.i(1,n1)) = 1;
         Aeq(1,obj.vars.footsteps.i(1,n2)) = 1;
         Aeq(1,obj.vars.footsteps.i(1,n3)) = 1;
         Aeq(1,obj.vars.footsteps.i(1,n4)) = 1;
-        Aeq(1,obj.vars.circ.i(1,j)) = -4;
-        Aeq(1,obj.vars.cos_yaw.i(j)) = 4*L*cos(correct);
-        Aeq(1,obj.vars.sin_yaw.i(j)) = -4*L*sin(correct);
+        Aeq(1,obj.vars.r_nom.i(1,j)) = -4;
+        Aeq(1,obj.vars.cos_yaw.i(j)) = 4*obj.L_leg*cos(correct);
+        Aeq(1,obj.vars.sin_yaw.i(j)) = -4*obj.L_leg*sin(correct);
 
         Aeq(2,obj.vars.footsteps.i(2,n1)) = 1;
         Aeq(2,obj.vars.footsteps.i(2,n2)) = 1;
         Aeq(2,obj.vars.footsteps.i(2,n3)) = 1;
         Aeq(2,obj.vars.footsteps.i(2,n4)) = 1;
-        Aeq(2,obj.vars.circ.i(2,j)) = -4;
-        Aeq(2,obj.vars.cos_yaw.i(j)) = 4*L*sin(correct);
-        Aeq(2,obj.vars.sin_yaw.i(j)) = 4*L*cos(correct);
+        Aeq(2,obj.vars.r_nom.i(2,j)) = -4;
+        Aeq(2,obj.vars.cos_yaw.i(j)) = 4*obj.L_leg*sin(correct);
+        Aeq(2,obj.vars.sin_yaw.i(j)) = 4*obj.L_leg*cos(correct);
 
         k = k + 1;
 
         obj = obj.addLinearConstraints([],[],Aeq,beq);
       end
 
-      %we now have that f(i) must be in a circle at a distance R from the step
-      R = 0.02*((obj.seed_plan.footsteps(3).pos(1) - obj.seed_plan.footsteps(4).pos(1))^2 +...
-          (obj.seed_plan.footsteps(3).pos(2) - obj.seed_plan.footsteps(4).pos(2))^2);  
+      k = 1;
 
+      %we now have that f(i) must be in a square of side d_lim from the step
+      
       %polytopic relaxation of the geometric contraint
       for j = 5:obj.nsteps
-        Ai = zeros(4,obj.nv);
+        Ai = sparse(4,obj.nv);
         bi = zeros(4,1);
 
         Ai(1,obj.vars.footsteps.i(1,j)) = 1;
-        Ai(1,obj.vars.circ.i(1,j)) = -1;
-        bi(1,1) = sqrt(R/2);
+        Ai(1,obj.vars.r_nom.i(1,j)) = -1;
+        bi(1,1) = obj.d_lim;
 
         Ai(2,obj.vars.footsteps.i(1,j)) = -1;
-        Ai(2,obj.vars.circ.i(1,j)) = 1;
-        bi(2,1) = sqrt(R/2);
+        Ai(2,obj.vars.r_nom.i(1,j)) = 1;
+        bi(2,1) = obj.d_lim;
 
         Ai(3,obj.vars.footsteps.i(2,j)) = 1;
-        Ai(3,obj.vars.circ.i(2,j)) = -1;
-        bi(3,1) = sqrt(R/2);
+        Ai(3,obj.vars.r_nom.i(2,j)) = -1;
+        bi(3,1) = obj.d_lim;
 
         Ai(4,obj.vars.footsteps.i(2,j)) = -1;
-        Ai(4,obj.vars.circ.i(2,j)) = 1;
-        bi(4,1) = sqrt(R/2);
+        Ai(4,obj.vars.r_nom.i(2,j)) = 1;
+        bi(4,1) = obj.d_lim;
 
         obj = obj.addLinearConstraints(Ai,bi,[],[]);
       end
-    end
 
-    function obj = addReachabilityConstraints(obj)
       % Constraints the reachability of each leg for the robot configuration and its successor
-      % Adds quadratic constraints such that every footstep lies on a circle of radius R 
-      % centered on its previous configuration.
-
-      R = 0.75*((obj.seed_plan.footsteps(3).pos(1) - obj.seed_plan.footsteps(4).pos(1))^2 +...
-          (obj.seed_plan.footsteps(3).pos(2) - obj.seed_plan.footsteps(4).pos(2))^2);
+      % Adds linear constraints such that every footstep lies on a square of side l_bnd 
+      % centered on the previous nominal leg position.
       
       for j = 5:obj.nsteps
-
-        n1 = j;
-        n2 = j - 4;
         %defines the linear constraint on reachability on x
-        Ai = zeros(2,obj.nv);
+        Ai = sparse(2,obj.nv);
         bi = zeros(2,1);
 
-        Ai(1,obj.vars.footsteps.i(1,n1)) = 1;
-        Ai(1,obj.vars.footsteps.i(1,n2)) = -1;
-        bi(1,1) = sqrt(R);
+        Ai(1,obj.vars.footsteps.i(1,j)) = 1;
+        Ai(1,obj.vars.r_nom.i(1,j-4)) = -1;
+        bi(1,1) = obj.l_bnd;
 
-        Ai(2,obj.vars.footsteps.i(1,n1)) = -1;
-        Ai(2,obj.vars.footsteps.i(1,n2)) = 1;
-        bi(2,1) = sqrt(R);
+        Ai(2,obj.vars.footsteps.i(1,j)) = -1;
+        Ai(2,obj.vars.r_nom.i(1,j-4)) = 1;
+        bi(2,1) = obj.l_bnd;
 
         %adds the constraints
         obj = obj.addLinearConstraints(Ai,bi,[],[]);
         
         %defines the linear constraint on reachability on y
-        Ai = zeros(2,obj.nv);
+        Ai = sparse(2,obj.nv);
         bi = zeros(2,1);
 
-        Ai(1,obj.vars.footsteps.i(2,n1)) = 1;
-        Ai(1,obj.vars.footsteps.i(2,n2)) = -1;
-        bi(1,1) = sqrt(R);
-
-        Ai(2,obj.vars.footsteps.i(2,n1)) = -1;
-        Ai(2,obj.vars.footsteps.i(2,n2)) = 1;
-        bi(2,1) = sqrt(R);
+        Ai(1,obj.vars.footsteps.i(2,j)) = 1;
+        Ai(1,obj.vars.r_nom.i(2,j-4)) = -1;
+        bi(1,1) = obj.l_bnd;
+        
+        Ai(2,obj.vars.footsteps.i(2,j)) = -1;
+        Ai(2,obj.vars.r_nom.i(2,j-4)) = 1;
+        bi(2,1) = obj.l_bnd;
 
         %adds the constraints
         obj = obj.addLinearConstraints(Ai,bi,[],[]);
         
         %defines the linear constraint on reachability of the yaw
-        Ai = zeros(2,obj.nv);
+        Ai = sparse(2,obj.nv);
         bi = zeros(2,1);
 
-        Ai(1,obj.vars.footsteps.i(4,n1)) = 1;
-        Ai(1,obj.vars.footsteps.i(4,n2)) = -1;
-        bi(1,1) = pi/4;
+        Ai(1,obj.vars.footsteps.i(4,j)) = 1;
+        Ai(1,obj.vars.footsteps.i(4,j-4)) = -1;
+        bi(1,1) = pi/8;
 
-        Ai(2,obj.vars.footsteps.i(4,n1)) = -1;
-        Ai(2,obj.vars.footsteps.i(4,n2)) = 1;
-        bi(2,1) = pi/4;
+        Ai(2,obj.vars.footsteps.i(4,j)) = -1;
+        Ai(2,obj.vars.footsteps.i(4,j-4)) = 1;
+        bi(2,1) = pi/8;
 
         %adds the constraints
         obj = obj.addLinearConstraints(Ai,bi,[],[]);
-
       end
       
       % Limits the difference in z between footsteps
-      Ai = zeros((obj.nsteps-4)*2, obj.nv);
+      Ai = sparse((obj.nsteps-4)*2, obj.nv);
       bi = zeros(size(Ai, 1), 1);
       offset = 0;
       expected_offset = size(Ai, 1);
@@ -489,17 +464,11 @@ classdef Quad_MixedIntegerFootstepPlanningProblem < Quad_MixedIntegerConvexProgr
       for j = 5:obj.nsteps
         % obj.symbolic_constraints = [obj.symbolic_constraints,...
         %   -obj.seed_plan.params.nom_downward_step <= x(3,j) - x(3,j-1) <= obj.seed_plan.params.nom_upward_step];
-        if mod(j,2)
-            N = 3;
-        else 
-            N = 1;
-        end
-        
         Ai(offset+1, obj.vars.footsteps.i(3,j)) = -1;
-        Ai(offset+1, obj.vars.footsteps.i(3,j-N)) = 1;
+        Ai(offset+1, obj.vars.footsteps.i(3,j-4)) = 1;
         bi(offset+1) = obj.seed_plan.params.nom_downward_step;
         Ai(offset+2, obj.vars.footsteps.i(3,j)) = 1;
-        Ai(offset+2, obj.vars.footsteps.i(3,j-N)) = -1;
+        Ai(offset+2, obj.vars.footsteps.i(3,j-4)) = -1;
         bi(offset+2) = obj.seed_plan.params.nom_upward_step;
         offset = offset + 2;
       end
@@ -535,7 +504,7 @@ classdef Quad_MixedIntegerFootstepPlanningProblem < Quad_MixedIntegerConvexProgr
         n3 = j+2;
         n4 = j+3;
 
-        Aeq = zeros(9, obj.nv);
+        Aeq = sparse(9, obj.nv);
         beq = zeros(9, 1);
 
         Aeq(1,obj.vars.footsteps.i(4,n1)) = 1;
@@ -569,7 +538,7 @@ classdef Quad_MixedIntegerFootstepPlanningProblem < Quad_MixedIntegerConvexProgr
       end
 
       obj = obj.addVariable('unit_circle_slack', 'C', [1,1], norm([pi/4;pi/4]), norm([pi/4;pi/4]));
-      Aeq_s = zeros(obj.nsteps, obj.nv);
+      Aeq_s = sparse(obj.nsteps, obj.nv);
       Aeq_c = zeros(obj.nsteps, obj.nv);
       beq = ones(size(Aeq_s, 1), 1);
       
@@ -582,7 +551,7 @@ classdef Quad_MixedIntegerFootstepPlanningProblem < Quad_MixedIntegerConvexProgr
       obj = obj.addPolyConesByIndex([repmat(obj.vars.unit_circle_slack.i, 1, obj.nsteps-4); obj.vars.cos_yaw.i(5:end); obj.vars.sin_yaw.i(5:end)], 8);
 
       M = 2*pi;
-      Ai = zeros((obj.nsteps-4) * (length(cos_boundaries)-1 + length(sin_boundaries)-1) * 4, obj.nv);
+      Ai = sparse((obj.nsteps-4) * (length(cos_boundaries)-1 + length(sin_boundaries)-1) * 4, obj.nv);
       bi = zeros(size(Ai, 1), 1);
       offset = 0;
       expected_offset = size(Ai, 1);
@@ -657,7 +626,7 @@ classdef Quad_MixedIntegerFootstepPlanningProblem < Quad_MixedIntegerConvexProgr
       obj = obj.addLinearConstraints(Ai, bi, [], []);
 
       % Consistency between sin and cos sectors
-      Ai = zeros((obj.nsteps-4) * obj.vars.sin_sector.size(1) * 2, obj.nv);
+      Ai = sparse((obj.nsteps-4) * obj.vars.sin_sector.size(1) * 2, obj.nv);
       bi = zeros(size(Ai, 1), 1);
       offset = 0;
       expected_offset = size(Ai, 1);
@@ -675,7 +644,7 @@ classdef Quad_MixedIntegerFootstepPlanningProblem < Quad_MixedIntegerConvexProgr
       obj = obj.addLinearConstraints(Ai, bi, [], []);
 
       % Transitions between sectors
-      Ai = zeros((obj.nsteps-4) * (nsectors-1) * 2, obj.nv);
+      Ai = sparse((obj.nsteps-4) * (nsectors-1) * 2, obj.nv);
       bi = zeros(size(Ai, 1), 1);
       offset = 0;
       expected_offset = size(Ai, 1);
@@ -731,7 +700,7 @@ classdef Quad_MixedIntegerFootstepPlanningProblem < Quad_MixedIntegerConvexProgr
         assert(length(region_ndx) == 1, 'Got no (or multiple) region assignments for this footstep. This indicates an infeasibility or bad setup in the mixed-integer program');
         plan.region_order(j) = region_ndx;
       end
-
+      plan.gait = obj.vars.timming.value;
       plan = plan.trim_duplicates();
     end
   end
