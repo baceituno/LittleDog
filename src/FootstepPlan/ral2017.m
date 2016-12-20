@@ -30,12 +30,9 @@ t0 = tic();
 planner = Quad_MixedIntegerFootstepPlanningProblem(quadruped, seed_plan);
 
 planner.weights = weights;
-%planner = planner.fixRotation();
 planner = planner.addSinCosLinearEquality();
 planner = planner.addReachabilityConstraints();
 planner = planner.addGeometricConstraints();
-%planner = planner.addTrimToFinalPoses();
-%planner = planner.addQuadraticRelativeObjective();
 planner = planner.addQuadraticGoalObjective(goal_pos, nsteps-3:nsteps, [1,1,1,1]);
 planner = planner.addTerrainRegions([]);
 
