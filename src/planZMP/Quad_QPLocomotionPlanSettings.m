@@ -20,8 +20,6 @@
     untracked_joint_inds;
     x0;
 
-    %planned_support_command = Quad_QPControllerPlan.support_logic_maps.require_support; % when the plan says a given body is in support, require the controller to use that support. To allow the controller to use that support only if it thinks the body is in contact with the terrain, try QPControllerPlan.support_logic_maps.kinematic_or_sensed; 
-
     min_knee_angle = 0;
     knee_kp = 40;
     knee_kd = 4;
@@ -34,8 +32,7 @@
     early_contact_allowed_fraction = 0.75;
 
     duration = inf;
-    start_time = 0; 
-    gain_set = 'standing';
+    start_time = 0;
   end
 
   methods
@@ -49,33 +46,6 @@
       obj.constrained_dofs = [];
       obj.untracked_joint_inds = [];
       obj.zmp_data = Quad_QPLocomotionPlanSettings.defaultZMPData();
-    end
-
-    function obj = setCOMTraj(obj)
-      ts = obj.qtraj.getBreaks();
-      % this deals with the case of a constant trajectory
-      com_poses = zeros(2,length(ts));
-      for j = 1:numel(ts)
-        kinsol = obj.robot.doKinematics(obj.qtraj.eval(ts(j)));
-        com_position = obj.robot.getCOM(kinsol);
-        com_poses(:,j) = com_position(1:2);
-      end
-      obj.comtraj = PPTrajectory(pchip(ts,com_poses));      
-    end
-
-    function obj = setLQRForCoM(obj)
-      error('this has never been properly tuned on the robot and should not be used yet')
-      Q = diag([10 10 1 1]);
-      R = 0.0001*eye(2);
-      A = [zeros(2),eye(2); zeros(2,4)];
-      B = [zeros(2); eye(2)];
-      [~,S,~] = lqr(A,B,Q,R);
-      % set the Qy to zero since we only want to stabilize COM
-      obj.zmp_data.Qy = 0*obj.zmp_data.Qy;
-      obj.zmp_data.A = A;
-      obj.zmp_data.B = B;
-      obj.zmp_data.R = R;
-      obj.zmp_data.S = S;
     end
     
    function draw_lcmgl(obj, lcmgl)    
@@ -102,15 +72,6 @@
           plot_traj_foh(link_trajectories(j).traj_max, [0, 1, 0]);   
         end    
       end    
-      if ~isa(obj.comtraj, 'Trajectory')
-        obj.comtraj = ExpPlusPPTrajectory(obj.comtraj.breaks,...   
-                                          obj.comtraj.K,...    
-                                          obj.comtraj.A,...    
-                                          obj.comtraj.alpha,...    
-                                          obj.comtraj.gamma);    
-      end    
-      %plot_traj_foh(obj.comtraj, [1,0,0]);   
-      %plot_traj_foh(obj.zmptraj, [0,0,1]);   
     end    
    
     function link_trajectories = getLinkTrajectories(obj)    
@@ -124,15 +85,16 @@
   end
 
   methods(Static)
+
     
     function obj = fromQuadrupedFootstepPlan(footstep_plan, Quadruped, x0)
-      zmp_options = struct();
+      options = struct();
       for j = 1:length(footstep_plan.footsteps)
         footstep_plan.footsteps(j).walking_params = applyDefaults(struct(footstep_plan.footsteps(j).walking_params),...
           Quadruped.default_walking_params);
       end
-      
-      [zmp_knots, foot_motion_data] = Quad_planZMPTraj(Quadruped,x0(1:Quadruped.getNumPositions()), footstep_plan.footsteps, zmp_options);
+      options.gait_sequence = footstep_plan.gait;
+      [zmp_knots, foot_motion_data] = Quad_planSwing(Quadruped,x0(1:Quadruped.getNumPositions()), footstep_plan.footsteps, options);
       obj = Quad_QPLocomotionPlanSettings.fromQuadrupedFootAndZMPKnots(foot_motion_data, zmp_knots, Quadruped, x0);
     end
 
@@ -157,8 +119,6 @@
         obj.V.S = fasteval(obj.V.S, 0);
       end
       obj.body_motions = [foot_motion_data];
-
-      obj.gain_set = 'walking';
       obj.use_plan_shift = true;
     end
 

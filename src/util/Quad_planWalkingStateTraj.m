@@ -55,11 +55,11 @@ for i = 1:length(ts)
     end
     if cws
       com = comtraj.eval(t);
-      ik_args = [ik_args,{constructRigidBodyConstraint(RigidBodyConstraint.WorldCoMConstraintType ,false,robot.getManipulator(),[com(1)-0.04;com(2)-0.04;com(3)-0.02],[com(1)+0.04;com(2)+0.04;com(3)+0.02])}];
+      ik_args = [ik_args,{constructRigidBodyConstraint(RigidBodyConstraint.WorldCoMConstraintType ,false,robot.getManipulator(),[com(1);com(2);com(3)-0.02],[com(1);com(2);com(3)+0.02])}];
     end
     ik_prob = InverseKinematics(robot, qstar, ik_args{:});
     ik_prob = ik_prob.setQ(diag(cost(1:robot.getNumPositions)));
-    ik_prob = ik_prob.setSolver('snopt');
+    ik_prob = ik_prob.setSolver('nlopt');
     q(:,i) = ik_prob.solve(q(:,i-1));
     %q(:,i) = inverseKin(robot,q(:,i-1),qstar,Quad_joint_cnstr,kc_com,ik_args{:},ikoptions);
   else

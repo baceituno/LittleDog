@@ -14,7 +14,7 @@
         <mesh filename="meshes/body.obj" scale=".0254 .0254 .0254" />
       </geometry>
       <material name="black">
-      	<color rgba="0.1 0.1 0.1 1" />
+        <color rgba="0.1 0.1 0.1 1" />
       </material>
     </visual>
   </link>
@@ -99,7 +99,7 @@
     <collision group="feet">
       <origin xyz="-0.0265 0 -0.0985"/>
       <geometry>
-        <sphere radius="0.0103"/>
+        <sphere radius="0.0001"/>
       </geometry>
     </collision>
     <collision group="feet">
@@ -205,7 +205,7 @@
     <collision group="feet">
       <origin xyz="-0.0265 0 -0.0985"/>
       <geometry>
-        <sphere radius="0.0103"/>
+        <sphere radius="0.0001"/>
       </geometry>
     </collision>
     <collision group="feet">
@@ -310,7 +310,7 @@
     <collision group="feet">
       <origin xyz="0.0265 0 -0.0985"/>
       <geometry>
-        <sphere radius="0.0103"/>
+        <sphere radius="0.0001"/>
       </geometry>
     </collision>
     <collision group="feet">
@@ -415,7 +415,7 @@
     <collision group="feet">
       <origin xyz="0.0265 0 -0.0985"/>
       <geometry>
-        <sphere radius="0.0103"/>
+        <sphere radius="0.0001"/>
       </geometry>
     </collision>
     <collision group="feet">

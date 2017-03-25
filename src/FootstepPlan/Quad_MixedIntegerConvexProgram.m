@@ -65,8 +65,6 @@ classdef Quad_MixedIntegerConvexProgram
         obj.symbolic_constraints = lmi();
       end
 
-      checkDependency('gurobi');
-      
       obj.has_symbolic = has_symbolic;
       
       obj.solver = 'gurobi';

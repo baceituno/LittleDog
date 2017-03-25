@@ -1,0 +1,14 @@
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/Users/baceituno_opt/drake-distro/build/install/lib/python2.7/dist-packages/director/drakevisualizerapp.py", line 3, in <module>
+    from director import mainwindowapp
+  File "/Users/baceituno_opt/drake-distro/build/install/lib/python2.7/dist-packages/director/mainwindowapp.py", line 3, in <module>
+    from director import consoleapp
+  File "/Users/baceituno_opt/drake-distro/build/install/lib/python2.7/dist-packages/director/consoleapp.py", line 6, in <module>
+    from director import applogic
+  File "/Users/baceituno_opt/drake-distro/build/install/lib/python2.7/dist-packages/director/applogic.py", line 5, in <module>
+    import director.vtkAll as vtk
+  File "/Users/baceituno_opt/drake-distro/build/install/lib/python2.7/dist-packages/director/vtkAll.py", line 2
+    %from vtkDRCFiltersPython import *
+    ^
+SyntaxError: invalid syntax

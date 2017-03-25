@@ -1,4 +1,4 @@
-function [zmp_knots, body_motions] = planZMPTraj(quadruped, q0, footsteps, options)
+function [zmp_knots, body_motions] = planSwing(quadruped, q0, footsteps, options)
 % Plan the trajectories of the ZMP and the feet in order to follow the given footsteps
 % @param q0 the initial configuration vector
 % @param footsteps a list of Footstep objects
@@ -10,7 +10,10 @@ MAX_FINAL_SWING_SPEED = 1.0;
 if nargin < 4; options = struct(); end
 
 options = applyDefaults(options, struct('t0', 0,...
-                                        'first_step_hold_s', 1.5));
+                                        'first_step_hold_s', 1.5,...
+                                        'gait_sequence', repmat(eye(4),1,(length(footsteps)-4)/4)));
+
+gait = options.gait_sequence;
 
 target_frame_id = struct('Foot1', quadruped.foot_frame_id.Foot1,...
                          'Foot2', quadruped.foot_frame_id.Foot2,...
@@ -88,33 +91,59 @@ istep = struct('Foot1', 1, 'Foot2', 1, 'Foot3', 1, 'Foot4', 1);
 is_first_step = true;
 cnt = 1;
 while 1
-  if mod(cnt,4) == 0
-    sw_foot = 'Foot4'; % moving (swing) foot
-    st1_foot = 'Foot3'; % stance foot
-    st2_foot = 'Foot1'; % stance foot
-    st3_foot = 'Foot2'; % stance foot
-    cnt = 0;
-  elseif mod(cnt,3) == 0
-    sw_foot = 'Foot3'; % moving (swing) foot
-    st1_foot = 'Foot4'; % stance foot
-    st2_foot = 'Foot1'; % stance foot
-    st3_foot = 'Foot2'; % stance foot
-  elseif mod(cnt,2) == 0
-    sw_foot = 'Foot2'; % moving (swing) foot
-    st1_foot = 'Foot1'; % stance foot
-    st2_foot = 'Foot3'; % stance foot
-    st3_foot = 'Foot4'; % stance foot
+  
+  n_trans = gait(1,cnt) + gait(2,cnt) + gait(3,cnt) + gait(4,cnt);
+  sw_feet = {};
+  st_feet = {};
+
+  n_sw = 0; n_st = 0;
+  if(gait(1,cnt) == 1)
+    sw_feet{n_sw + 1} = 'Foot1';
+    n_sw = n_sw + 1;
   else
-    sw_foot = 'Foot1'; % moving (swing) foot
-    st1_foot = 'Foot2'; % stance foot
-    st2_foot = 'Foot3'; % stance foot
-    st3_foot = 'Foot4'; % stance foot
+    st_feet{n_st + 1} = 'Foot1';
+    n_st = n_st + 1;
   end
-  sw0 = steps.(sw_foot)(istep.(sw_foot));
-  sw1 = steps.(sw_foot)(istep.(sw_foot)+1);
-  st1 = steps.(st1_foot)(istep.(st1_foot));
-  st2 = steps.(st2_foot)(istep.(st2_foot));
-  st3 = steps.(st3_foot)(istep.(st3_foot));
+
+  if(gait(2,cnt) == 1)
+    sw_feet{n_sw + 1} = 'Foot2';
+    n_sw = n_sw + 1;
+  else
+    st_feet{n_st + 1} = 'Foot2';
+    n_st = n_st + 1;
+  end
+
+  if(gait(3,cnt) == 1)
+    sw_feet{n_sw + 1} = 'Foot3';
+    n_sw = n_sw + 1;
+  else
+    st_feet{n_st + 1} = 'Foot3';
+    n_st = n_st + 1;
+  end
+
+  if(gait(4,cnt) == 1)
+    sw_feet{n_sw + 1} = 'Foot4';
+    n_sw = n_sw + 1;
+  else
+    st_feet{n_st + 1} = 'Foot4';
+    n_st = n_st + 1;
+  end
+
+  assert(n_st == 4-n_trans);
+  assert(n_sw == n_trans);
+  
+  sw  = {};
+  sw1 = {};
+  st  = {};
+
+  for l = 1:n_trans
+    sw{l} = steps.(sw_feet{l})(istep.(sw_feet{l}));
+    sw1{l} = steps.(sw_feet{l})(istep.(sw_feet{l})+1);
+  end 
+
+  for l = 1:(4-n_trans)
+    st{l} = steps.(st_feet{l})(istep.(st_feet{l}));
+  end
 
   if is_first_step
     initial_hold = options.first_step_hold_s;
@@ -129,10 +158,12 @@ while 1
 
   if istep.Foot1 == length(steps.Foot1) || istep.Foot2 == length(steps.Foot2) || istep.Foot3 == length(steps.Foot3) || istep.Foot4 == length(steps.Foot4)
     % this is the last swing, so slow down
-    sw1.walking_params.step_speed = min(sw1.walking_params.step_speed, MAX_FINAL_SWING_SPEED);
+    for l = 1:n_trans
+      sw1{l}.walking_params.step_speed = min(sw1{l}.walking_params.step_speed, MAX_FINAL_SWING_SPEED);
+    end
   end
 
-  [new_foot_knots, new_zmp_knots] = Quad_planSwingPitched(quadruped, st1, st2, st3, sw0, sw1, initial_hold, target_frame_id);
+  [new_foot_knots, new_zmp_knots] = Quad_planSwingPitched(quadruped, st, sw, sw1, initial_hold, target_frame_id);
  
   t0 = frame_knots(end).t;
   for k = 1:length(new_foot_knots)
@@ -141,15 +172,23 @@ while 1
   for k = 1:length(new_zmp_knots)
     new_zmp_knots(k).t = new_zmp_knots(k).t + t0;
   end
-  frame_knots(end).toe_off_allowed.(sw_foot) = true;
+  
+  for l = 1:n_trans
+    frame_knots(end).toe_off_allowed.(sw_feet{l}) = true;
+  end
+
   frame_knots = [frame_knots, new_foot_knots];
   zmp_knots = [zmp_knots, new_zmp_knots];
 
-  istep.(sw_foot) = istep.(sw_foot) + 1;
-  cnt = cnt + 1;
+  for l = 1:n_trans
+    istep.(sw_feet{l}) = istep.(sw_feet{l}) + 1;
+  end
+
   if istep.Foot1 == length(steps.Foot1) && istep.Foot2 == length(steps.Foot2) && istep.Foot3 == length(steps.Foot3) && istep.Foot4 == length(steps.Foot4)
     break
   end
+
+  cnt = cnt + 1;
 end
 
 % add a segment at the end to recover
@@ -157,7 +196,6 @@ t0 = frame_knots(end).t;
 frame_knots(end+1) = frame_knots(end);
 frame_knots(end).t = t0 + 1.5;
 [zmpf, suppf] = getZMPBetweenFeet(quadruped, struct('Foot1', steps.Foot1(end), 'Foot2', steps.Foot2(end), 'Foot3', steps.Foot3(end), 'Foot4', steps.Foot4(end)));
-% zmpf = mean([steps.right(end).pos(1:2), steps.left(end).pos(1:2)], 2);
 zmp_knots(end+1) =  struct('t', frame_knots(end-1).t, 'zmp', zmpf, 'supp', suppf);
 zmp_knots(end+1) =  struct('t', frame_knots(end).t, 'zmp', zmpf, 'supp', suppf);
 

@@ -90,7 +90,7 @@ classdef LittleDog < TimeSteppingRigidBodyManipulator & Quadruped
       xstar.back_left_hip_roll = hip_roll;
       xstar.back_left_hip_pitch = -hip_pitch;
       xstar.back_left_knee = knee;
-      xstar.base_z = 0.146;
+      xstar.base_z = 0.1442;
       xstar.base_yaw = 0;
     end
 
@@ -111,7 +111,7 @@ classdef LittleDog < TimeSteppingRigidBodyManipulator & Quadruped
 
       weights = struct('relative', [1;1;1;0;0;0.5],...
                        'relative_final', [10;10;10;0;0;2],...
-                       'goal', [1000;1000;0;0;0;10]);
+                       'goal', [1000;1000;10;0;0;10]);
     end
 
     function prop_cache = getRobotPropertyCache(obj)
@@ -160,9 +160,9 @@ classdef LittleDog < TimeSteppingRigidBodyManipulator & Quadruped
       prop_cache.actuated_indices = obj.getActuatedJoints();
     end
     
-    function footstep_plan = planFootstepsAdditive(obj, start_pos_or_q, goal_pos_or_q, safe_regions, iterations)
+    function footstep_plan = planFootstepsAdditive(obj, start_pos_or_q, goal_pos_or_q, safe_regions, iterations, N)
 
-      footstep_plan = obj.planFootsteps(start_pos_or_q, goal_pos_or_q, safe_regions,struct('step_params', struct('max_num_steps', 16)));
+      footstep_plan = obj.planFootsteps(start_pos_or_q, goal_pos_or_q, safe_regions,struct('step_params', struct('max_num_steps', N + 4)));
 
       steps = struct();
       Foot1 = [footstep_plan.footsteps(end-3).pos(1), footstep_plan.footsteps(end-3).pos(2),... 
@@ -176,7 +176,7 @@ classdef LittleDog < TimeSteppingRigidBodyManipulator & Quadruped
       steps = struct('Foot1', Foot1, 'Foot2', Foot2, 'Foot3', Foot3, 'Foot4', Foot4);
       for i = 1:iterations
         clear footstep_plan1
-        footstep_plan1 = obj.planFootsteps(steps, goal_pos_or_q, safe_regions,struct('step_params', struct('max_num_steps', 12)));
+        footstep_plan1 = obj.planFootsteps(steps, goal_pos_or_q, safe_regions,struct('step_params', struct('max_num_steps', N)));
 
         steps = struct();
         Foot1 = [footstep_plan1.footsteps(end-3).pos(1), footstep_plan1.footsteps(end-3).pos(2),... 
@@ -290,7 +290,8 @@ classdef LittleDog < TimeSteppingRigidBodyManipulator & Quadruped
       weights = getFootstepOptimizationWeights(obj);
       
       try
-        [plan, solvertime] = options.method_handle(obj, plan, weights, goal_pos);
+
+          [plan, solvertime] = options.method_handle(obj, plan, weights, goal_pos);
       catch e
         if strcmp(e.identifier, 'Drake:MixedIntegerConvexProgram:InfeasibleProblem')
           warning('The footstep planning problem is infeasible. Returning just the initial footstep poses');
@@ -311,15 +312,7 @@ classdef LittleDog < TimeSteppingRigidBodyManipulator & Quadruped
 
   properties
     fixed_point_file = fullfile('../model/BH3R_fp.mat');
-    default_footstep_params = struct('nom_forward_step', 0.05,... % m
-                                      'max_forward_step', 0.07,...% m
-                                      'max_backward_step', 0.035,...% m
-                                      'max_step_width', 0.03,...% m
-                                      'min_step_width', 0.01,...% m
-                                      'nom_step_width', 0.02,...% m
-                                      'max_outward_angle', pi,... % rad
-                                      'max_inward_angle', -pi,... % rad
-                                      'nom_upward_step', 0.05,... % m
+    default_footstep_params = struct('nom_upward_step', 0.05,... % m
                                       'nom_downward_step', 0.05,...% m
                                       'max_num_steps', 67,...
                                       'min_num_steps', 7,...

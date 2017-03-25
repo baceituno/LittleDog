@@ -24,7 +24,7 @@ warning('off','Drake:RigidBodyManipulator:UnsupportedContactPoints')
 warning('off','Drake:RigidBodyManipulator:UnsupportedVelocityLimits')
 
 % construct robot model
-r = LittleDog('/home/mecatronica/RAL2016/LittleDog/src/LittleDog/LittleDog.urdf',robot_options);
+r = LittleDog('../../../LittleDog/src/LittleDog/LittleDog.urdf',robot_options);
 r = r.removeCollisionGroupsExcept({'feet'});
 r = compile(r);
 
@@ -43,7 +43,7 @@ xf = x0;
 
 xf.base_x = xstar.base_x + 2;
 xf.base_z = xstar.base_z + 0.5;
-xf.base_yaw = x0.base_yaw + pi/4;
+xf.base_yaw = x0.base_yaw + pi/8;
 nq = r.getNumPositions();
 
 display('loading obstacles');
@@ -110,7 +110,7 @@ v.display_dt = 0.01;
 v.draw(0,x0(1:nq))
 
 display('Drawing goal');
-lcmgl1 = drake.util.BotLCMGLClient(lcm.lcm.LCM.getSingleton(), 'goal_pose');
+lcmgl1 = drake.matlab.util.BotLCMGLClient(lcm.lcm.LCM.getSingleton(), 'goal_pose');
 lcmgl1.glColor3f(0,0,0);
 f_height = xf.base_z - xstar.base_z;
 lcmgl1.glPushMatrix();
@@ -118,7 +118,7 @@ lcmgl1.circle(xf.base_x, xf.base_y, f_height, 0.15);
 lcmgl1.glPopMatrix();
 lcmgl1.switchBuffers();
 
-lcmgl3 = drake.util.BotLCMGLClient(lcm.lcm.LCM.getSingleton(), 'goal_rot');
+lcmgl3 = drake.matlab.util.BotLCMGLClient(lcm.lcm.LCM.getSingleton(), 'goal_rot');
 lcmgl3.glColor3f(0,0,0);
 lcmgl3.glTranslated(xf.base_x, xf.base_y, f_height);
 axis = rpy2axis([0,0,xf.base_yaw]);
@@ -133,8 +133,8 @@ lcmgl3.glPopMatrix();
 lcmgl3.switchBuffers();
 
 display('planning footsteps')
-footstep_plan = r.planFootstepsAdditive(x0(1:nq), xf(1:nq), safe_regions, 3);
-lcmgl = drake.util.BotLCMGLClient(lcm.lcm.LCM.getSingleton(), 'footstep_plan');
+footstep_plan = r.planFootstepsAdditive(x0(1:nq), xf(1:nq), safe_regions, 4, 12);
+lcmgl = drake.matlab.util.BotLCMGLClient(lcm.lcm.LCM.getSingleton(), 'footstep_plan');
   footstep_plan.draw_lcmgl(lcmgl);
   lcmgl.switchBuffers()
 display('fitting footsteps to terrain')
@@ -158,10 +158,10 @@ settings = Quad_QPLocomotionPlanSettings.fromQuadrupedFootstepPlan(footstep_plan
 
 display('Drawing plan')
 if isa(v, 'BotVisualizer')
-  lcmgl = drake.util.BotLCMGLClient(lcm.lcm.LCM.getSingleton(), 'footstep_plan');
+  lcmgl = drake.matlab.util.BotLCMGLClient(lcm.lcm.LCM.getSingleton(), 'footstep_plan');
   footstep_plan.draw_lcmgl(lcmgl);
   lcmgl.switchBuffers();
-  lcmgl = drake.util.BotLCMGLClient(lcm.lcm.LCM.getSingleton(), 'walking_plan');
+  lcmgl = drake.matlab.util.BotLCMGLClient(lcm.lcm.LCM.getSingleton(), 'walking_plan');
   settings.draw_lcmgl(lcmgl);
   lcmgl.switchBuffers();
 else
@@ -177,7 +177,7 @@ display('Running plan')
 v.playback(xtraj, struct('slider', true));
 
 display('Drawing goal');
-lcmgl1 = drake.util.BotLCMGLClient(lcm.lcm.LCM.getSingleton(), 'goal_pose');
+lcmgl1 = drake.matlab.util.BotLCMGLClient(lcm.lcm.LCM.getSingleton(), 'goal_pose');
 lcmgl1.glColor3f(0,0,0);
 f_height = xf.base_z - xstar.base_z;
 lcmgl1.glPushMatrix();
@@ -185,7 +185,7 @@ lcmgl1.circle(xf.base_x, xf.base_y, f_height, 0.15);
 lcmgl1.glPopMatrix();
 lcmgl1.switchBuffers();
 
-lcmgl3 = drake.util.BotLCMGLClient(lcm.lcm.LCM.getSingleton(), 'goal_rot');
+lcmgl3 = drake.matlab.util.BotLCMGLClient(lcm.lcm.LCM.getSingleton(), 'goal_rot');
 lcmgl3.glColor3f(0,0,0);
 lcmgl3.glTranslated(xf.base_x, xf.base_y, f_height);
 axis = rpy2axis([0,0,xf.base_yaw]);

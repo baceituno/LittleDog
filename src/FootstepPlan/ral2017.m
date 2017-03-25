@@ -30,16 +30,18 @@ t0 = tic();
 planner = Quad_MixedIntegerFootstepPlanningProblem(quadruped, seed_plan);
 
 planner.weights = weights;
+%planner = planner.fixRotation();
 planner = planner.addSinCosLinearEquality();
 planner = planner.addReachabilityConstraints();
-planner = planner.addGeometricConstraints();
-planner = planner.addQuadraticGoalObjective(goal_pos, nsteps-3:nsteps, [1,1,1,1]);
+%planner = planner.addTrimToFinalPoses();
+planner = planner.addQuadraticRelativeObjective();
+planner = planner.addQuadraticGoalObjective(goal_pos, nsteps-3:nsteps);
 planner = planner.addTerrainRegions([]);
+planner = planner.addGaitConstraints();
 
 fprintf(1, 'gurobi setup: %f\n', toc(t0));
 [planner, solvertime, objval_nosymb] = planner.solve();
 fprintf(1, 'gurobi total: %f\n', toc(t0));
-
 plan = planner.getFootstepPlan();
 
 end

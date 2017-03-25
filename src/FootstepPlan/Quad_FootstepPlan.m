@@ -9,6 +9,7 @@ classdef Quad_FootstepPlan
     region_order % a list of the same length as footsteps. If region_order(i) == j, then footsteps(i).pos must be within safe_regions(j)
     quadruped
     gait
+    timming
   end
 
   methods
@@ -33,46 +34,9 @@ classdef Quad_FootstepPlan
         plan.footsteps(end+1) = plan_extra.footsteps(j);
         plan.region_order(end+1) = plan_extra.region_order(j);
       end
-      t0 = max(plan.gait);
-      plan.gait = [plan.gait, (t0 + plan_extra.gait)];
-    end
-
-    function plan = extend(obj, final_length, n)
-      % Extend a footstep plan by replicating its final n footsteps. Useful for
-      % generating seeds for later optimization.
-      % @param final_length desired number of footsteps in the extended plan
-      % @option n how many final steps to consider (the last n steps will be
-      %          repeatedly appended to the footstep plan until the final
-      %          length is achieved). Optional. Default: 6
-      % @retval plan the extended plan
-      if nargin < 3
-        n = 6;
-      end
-      if n > length(obj.footsteps)
-        error('DRC:FootstepPlan:NotEnoughStepsToExtend', 'Not enough steps in the plan to extend in the requested manner');
-      end
-      if final_length <= length(obj.footsteps)
-        plan = plan.slice(1:final_length);
-      else
-        plan = obj;
-        j = 1;
-        source_ndx = (length(obj.footsteps) - n) + (1:n);
-        for k = (length(obj.footsteps) + 1):final_length
-          if mod(k,4) == 0
-            j = 4;  
-          elseif mod(k,3) == 0
-            j = 3;  
-          elseif mod(k,2) == 0
-            j = 2;
-          else
-            j = 1;
-          end
-          plan.footsteps(k) = plan.footsteps(source_ndx(j));
-          plan.region_order(k) = plan.region_order(source_ndx(j));
-          plan.footsteps(k).id = plan.footsteps(k-1).id + 1;
-          j = mod(j, length(source_ndx)) + 1;
-        end
-      end
+      offset = size(plan.gait,2);
+      plan.gait = [plan.gait, plan_extra.gait];
+      assert(size(plan.gait,1) == 4);
     end
 
     function ts = compute_step_timing(obj, quadruped)
@@ -95,20 +59,7 @@ classdef Quad_FootstepPlan
         ts(j) = ts(j-n) + swing_ts(end);
       end
     end
-
-    function varargout = sanity_check(obj)
-      % Self-test for footstep plans.
-      ok = true;
-      frame_ids = [obj.footsteps.frame_id];
-      if any(frame_ids(1:end-1) == frame_ids(2:end))
-        ok = false;
-        if nargout < 1
-          error('Body indices should not repeat.');
-        end
-      end
-      varargout = {ok};
-    end
-
+    
     function draw_lcmgl(obj, lcmgl)
       lcmgl.glColor3f(1,1,0);
       k = 1;
