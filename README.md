@@ -1,7 +1,7 @@
 # LittleDog
 LittleDog robot implementation for Drake.
 
-The details on the implmentation of the generalized footstep planner can be found in our paper: https://arxiv.org/abs/1612.02109
+The details on the implmentation of the generalized footstep planner can be found in our paper: http://ieeexplore.ieee.org/document/8206313/
 
 To cite this implementation use the following bibtex:
 ```
